@@ -3,6 +3,7 @@ import time
 import regex
 from typing import Union
 import requests
+import base64
 import Untis.error
 
 
@@ -118,12 +119,14 @@ class API:
 
     ## API functions
     # default requests function
-    def _requests(self, method: str, params: dict = None) -> dict:
+    def _requests(self, method: str, params: dict = None, auth:bool=True) -> dict:
         """
         Creates default requests for untis server
-        :param method:
-        :param params:
-        :return:
+        :param method: method which get used
+        :param params: params for request
+        :param auth: default True only false for login
+        :return: dict
+        :raise UntisError when requests return error
         """
 
         url = f"https://{self.server}/WebUntis/jsonrpc_intern.do"
@@ -135,11 +138,14 @@ class API:
             "v": "i5.12.3"
         }
 
-        values = [{
-            "auth": self.auth()
-        }]
+        values = []
+        if auth:
+            values = [{
+                "auth": self.auth()
+            }]
 
-        params and values.extend(params)
+        params and values[0].update(params)
+
 
         data = {
             "id": self.untisID,
@@ -251,30 +257,50 @@ class API:
         return result
 
 
-    def getAppSharedSecret(self):
+    def getAppInfo(self):
         """"""
-        """ params
-        val userName: String,
-		val password: String
-        """
         #TODO
-        result = self._requests(method="getAppSharedSecret")
+
+        result = self._requests(method="getAppInfo", auth=False)
+        return result
+
+    def getVersion(self):
+        """"""
+        #TODO
+
+        result = self._requests(method="getVersion", auth=False)
         return result
 
 
-    def getUserData(self) -> dict:
+    def getAppSharedSecret(self, username:str="", password:str="#anonymous#"):
+        """
+        Get APP Shared Secrets
+        :param username: username, default ""
+        :param password: password, default "#anonymous#"
+        :return: appSharedSecrets data
+        """
+
+        params = {
+            "username": username,
+            "password": password
+        }
+
+        result = self._requests(method="getAppSharedSecret", params=params, auth=False)
+        return result
+
+
+    def getUserData(self, elementID: int= 0) -> dict:
         """"""
         """ params
-        val userName: String,
-		val password: String
 		"""
+        params = {
+            "deviceOs": "AND",
+            "deviceOsVersion": "Android13 API 33",
+            "elementId": 0 # what should be here? # can be any number?
+        }
 
-        result = self._requests(method="getUserData2017")
-
-
-        # reformat masterData. ID match dict key
-        masterData:dict = result["masterData"]
-        return masterData
+        result = self._requests(method="getUserData2017", params=params)
+        return result
 
 
 
@@ -300,7 +326,7 @@ class API:
         val date: UntisDate,
         """
         params = {
-            "date": date.strftime("%Y-%m-%d")
+            "date": f"{date:%Y-%m-%d}"
         }
 
         result = self._requests(method="getMessagesOfDay2017", params=params)
@@ -308,33 +334,25 @@ class API:
 
 
     def getExams(self, startDate: Union[datetime.datetime, str], endDate: Union[datetime.datetime, str],
-            ID: str, Type: str ):
+            Id: str, typ: str ):
         """
         Get Exams in timerange
         :param startDate: The start date can be acquired through class startDate
         :param endDate: The end date can be acquired tho class endDate
-        :param ID: The ID of class | student ... TODO need research
-        :param Type: type of ID possible: CLASS | STUDENT | ... TODO: need research
+        :param Id: The ID of class | student ... TODO need research
+        :param typ: type of ID possible: CLASS | STUDENT | ... TODO: need research
         :return:
         """
         # TODO: IDEA: could obtain Information from Class | Student Group/Class/Object
-
         # get exams for given school year or for time range?
-        """ params
-        val id: Int,
-		val type: String,
-		val startDate: UntisDate,
-		val endDate: UntisDate,
-        """
-
-
-        startDate, endDate = f"{startDate:%Y-%m-%d}", f"{endDate:%Y-%m-%d}"
+        isinstance(startDate, datetime) and (startDate := f"{startDate:%Y-%m-%d}")
+        isinstance(endDate, datetime) and (endDate := f"{endDate:%Y-%m-%d}")
 
         params = {
             "startDate": startDate,
             "endDate": endDate,
-            "id": f"{ID}",
-            "type": f"{Type}"  # only seen in usage of CLASS
+            "id": f"{Id}",
+            "type": f"{typ}"  # only seen in usage of CLASS
         }
 
         result = self._requests(method="getExams2017", params=params)
@@ -391,3 +409,28 @@ class API:
 
         result = self._requests(method="getTimetable2017", params=params)
         return result
+
+    # some special api functions?
+    def _get_request(self, path):
+        """"""
+        headers = {
+            "anonymous-school-base64": base64.b64encode(bytes(self.loginName,"UTF8")),
+            "user-agent": "android"
+        }
+        url = f"https://{self.server}{path}?school={self.loginName}"
+        result = requests.get(url=url, headers=headers)
+        return result.json()
+
+
+    def todo_1(self):
+        path = "/WebUntis/api/rest/view/v1/mobile/data"
+        return self._get_request(path)
+
+    def todo_2(self):
+        path = "/WebUntis/api/rest/view/v1/trigger/startup"
+        return self._get_request(path)
+
+    def todo_3(self):
+        path = "/WebUntis/api/rest/view/v2/home"
+        return self._get_request(path)
+

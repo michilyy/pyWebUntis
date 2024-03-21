@@ -42,6 +42,10 @@ class School:
     displayName:str = ""
     schoolID:str = ""
 
+    masterData:dict = {}
+    userData:dict = {}
+    settings:dict = {}
+
     def __init__(self: object, server: str, loginName: str, username: str = "#anonymous#", password: str = "",**kwargs):
         """
         Init function for School class. Stores only Api related information specific attributes and functions
@@ -60,15 +64,35 @@ class School:
         self.displayName = schoolData["displayName"]
         self.schoolID = schoolData["schoolId"]
 
+        result = self.api.getUserData()
+        self.masterData = result["masterData"]
+        self.userData = result["userData"]
+        self.settings = result["settings"]
 
-    def get_userdata(self):
-        userData = self.api.getUserData()
-
-        for key in ["masterData", "userData", "settings"]:
-            setattr(self, key, userData[key])
 
 
     # klassen funktionen
+    def find_klasse_by(self, **kwargs) -> list:
+        """
+        Find klasse by parameter given in kwargs
+        if key not in klasse dict key gets ignored
+        only returns klasse dict when all args matched
+        :param kwargs: key=val
+        :return: [] or [klasse, klasse]
+        """
+
+        returning = []
+
+        for klasse in self.masterData["klassen"]:
+
+            keys = klasse.keys() & kwargs.keys()
+            for key in keys:
+                if not klasse[key] == kwargs[key]:
+                    continue
+
+                returning.append(klasse)
+
+        return returning
 
 
 
