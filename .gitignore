@@ -280,5 +280,5 @@ fabric.properties
 
 # own config or research file
 save.pk
-tmp/
+pyWebUntis/tmp/
 

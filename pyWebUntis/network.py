@@ -1,12 +1,9 @@
-import datetime
 import time
-import regex
+import pendulum
 from typing import Union
 import requests
 import base64
-import Untis.error
-
-
+import pyWebUntis.error
 
 
 
@@ -64,6 +61,7 @@ class API:
         data = self.session.post(url=baseurl, json=json).json()
         return data["result"]["schools"][0]
 
+
     def auth(self) -> dict:
         """
         helper function creates auth dict
@@ -79,40 +77,41 @@ class API:
 
         return auth
 
-    def _getMoSofromDate(self, date: datetime.datetime) -> list[datetime.date, datetime.date]:
+
+    def _getMoSofromDate(self, date: pendulum.datetime) -> list[pendulum.date, pendulum.date]:
         """
         Gets date of Monday and Sunday of week
         :param date: the given date to calculate monday and sunday
         :return: list with monday and sunday date
         """
 
-        # get datetime.date from given object
+        # get pendulum.date from given object
         # calculate monday
         # calculate friday
 
-        date = date.date() if isinstance(date, datetime.datetime) else date
-
-        mon = date - datetime.timedelta(days=date.weekday())
-        son = date + datetime.timedelta(days=6 - date.weekday())
+        mon = date.subtract(days= date.weekday())
+        son = date.add(days= 6 - date.weekday())
 
         return [mon, son]
 
-    def _date_iter(self,
-                   end: datetime.date, start: datetime.date = datetime.date.today(),
-                   delta: datetime.timedelta = datetime.timedelta(days=7)
-                   ) -> list[datetime.date, datetime.date]:
+
+    def date_iter(self,
+                   start: pendulum.date = pendulum.today(),
+                   end: pendulum.date = pendulum.today().add(months=6),
+                   delta: pendulum.duration = pendulum.duration(weeks=1)
+                   ) -> list[pendulum.date, pendulum.date]:
         """
-        Iter dates from start
-        :param end: datetime.date object beginning the iteration
-        :param args: start:datetime.date, steps=datetime.timedelta
-        :param kwargs: end:datetime.date, steps=datetime.timedelta
-        :return: list with monday and sunday dates
+        Iter dates from today to end of current school year
+        :param start: default: today. begin of iteration
+        :param end: default: today + half a year. end of iteration
+        :param delta: default: 7 days. min 7 days. timedelta
+        :return: list[ monday, sunday ] as pendulum.date
         """
 
         current = start
         while current < end:
-            result = self._getMoSofromDate(current)
-            yield result
+
+            yield self._getMoSofromDate(current)
             current = current + delta
 
 
@@ -159,7 +158,7 @@ class API:
 
         if "error" in result:
             error = result["error"]
-            raise Untis.error.UntisError(code=error["code"], message=error["message"])
+            raise pyWebUntis.error.UntisError(code=error["code"], message=error["message"])
 
         return result["result"]
 
@@ -217,7 +216,7 @@ class API:
     def getLessonTopic(self):
         """"""
         # TODO: Params
-        #TODO
+        # TODO
         result = self._requests(method="getLessonTopic2017")
         return result
 
@@ -319,7 +318,7 @@ class API:
         return colors
 
 
-    def getMessagesOfDay(self, date: datetime.date = datetime.date.today()):
+    def getMessagesOfDay(self, date: pendulum.date = pendulum.today()):
         """"""
         # TODO
         """ params
@@ -333,20 +332,20 @@ class API:
         return result
 
 
-    def getExams(self, startDate: Union[datetime.datetime, str], endDate: Union[datetime.datetime, str],
+    def getExams(self, startDate: Union[pendulum.datetime, str], endDate: Union[pendulum.datetime, str],
             Id: str, typ: str ):
         """
         Get Exams in timerange
         :param startDate: The start date can be acquired through class startDate
         :param endDate: The end date can be acquired tho class endDate
-        :param Id: The ID of class | student ... TODO need research
+        :param Id: The ID of class | student | ... TODO need research
         :param typ: type of ID possible: CLASS | STUDENT | ... TODO: need research
         :return:
         """
-        # TODO: IDEA: could obtain Information from Class | Student Group/Class/Object
+
         # get exams for given school year or for time range?
-        isinstance(startDate, datetime) and (startDate := f"{startDate:%Y-%m-%d}")
-        isinstance(endDate, datetime) and (endDate := f"{endDate:%Y-%m-%d}")
+        isinstance(startDate, pendulum.date) and (startDate := f"{startDate:%Y-%m-%d}")
+        isinstance(endDate, pendulum.date) and (endDate := f"{endDate:%Y-%m-%d}")
 
         params = {
             "startDate": startDate,
@@ -356,17 +355,18 @@ class API:
         }
 
         result = self._requests(method="getExams2017", params=params)
-        # TODO: Empty result
+        # TODO: analyse result
         return result
 
 
-    def getHomeWork(self, startDate: Union[datetime.datetime, str], endDate: Union[datetime.datetime, str],
+    def getHomeWork(self, startDate: Union[pendulum.datetime, str], endDate: Union[pendulum.datetime, str],
                          ID: str, Type: str):
         """"""
 
-        # TODO: IDEA: could obtain Information from Class | Student Group/Class/Object
         # TODO: See getExams2017
-        startDate, endDate = f"{startDate:%Y-%m-%d}", f"{endDate:%Y-%m-%d}"
+        isinstance(startDate, pendulum.date) and (startDate := f"{startDate:%Y-%m-%d}")
+        isinstance(endDate, pendulum.date) and (endDate := f"{endDate:%Y-%m-%d}")
+
         params = {
             "startDate": startDate,
             "endDate": endDate,
@@ -374,38 +374,56 @@ class API:
             "type": f"{Type}"
         }
 
-        """ params
-        val id: Int,
-		val type: String,
-		val startDate: UntisDate,
-		val endDate: UntisDate,
-		"""
-
         result = self._requests(method="getHomeWork2017", params=params)
         return result
 
 
-    def getTimetable(self):
-        """"""
+    def getTimetable(self,
+                     startDate: Union[pendulum.datetime, str],
+                     endDate: Union[pendulum.datetime, str],
+                     ID: Union[str, int],
+                     typ: str):
+        """
+
+        :param startDate: startdate
+        :param endDate: enddate
+        :param ID: id from klasse | student
+        :param typ: type depents klasse | student
+        :param masterDataTimestamp # TODO: Try how the response behaves depending on changes to this value
+        :param timetableTimestamp # TODO: research see above
+        :param timetableTimestamps # TODO: research see above
+        :return:
+        """
+
+
+        isinstance(startDate, str) or (startDate := f"{startDate:%Y-%m-%d}")
+        isinstance(endDate, str) or (endDate := f"{endDate:%Y-%m-%d}")
+
+        # default args für Timestamps
+        # Todo research
+
+        default = {
+            "masterDataTimestamp": 0,
+            "timetableTimestamp": 0,
+            "timetableTimestamps": [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+            ]
+        }
 
         params = {
-            "startDate",
-            "endDate",
-            "id",
-            "masterDataTimestamp",
-            "timetableTimestamp",
-            "timetableTimestamps",
-            "type"
+            "startDate": startDate,
+            "endDate": endDate,
+            "id": f"{ID}",
+             "type": typ,
         }
-        """ params
-        val id: Int,
-		val type: String,
-		val startDate: UntisDate,
-		val endDate: UntisDate,
-		val masterDataTimestamp: Long, // TODO: Try how the response behaves depending on changes to this value
-		val timetableTimestamp: Long,
-		val timetableTimestamps: List<Long>,
-		"""
+
+        params.update(default)
 
         result = self._requests(method="getTimetable2017", params=params)
         return result

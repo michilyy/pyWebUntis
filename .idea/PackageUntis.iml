@@ -10,7 +10,7 @@
   <component name="PyNamespacePackagesService">
     <option name="namespacePackageFolders">
       <list>
-        <option value="$MODULE_DIR$/tmp" />
+        <option value="$MODULE_DIR$/pyWebUntis/tmp" />
       </list>
     </option>
   </component>

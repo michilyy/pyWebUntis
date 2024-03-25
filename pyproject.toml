@@ -1,0 +1,20 @@
+[build-system]
+requires      = ["setuptools>=61.0.0", "setuptools-scm"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pyWebUntis"
+version = "0.0.1"
+description = "Use the WebUntis api in python"
+readme = "README.md"
+license = { file = "LICENSE.md" }
+classifiers = [
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+]
+
+keywords = ["webuntis", "untis"]
+dependencies = [
+    "requests ~= 2.31.0",
+]
+requires-python = ">=3.11"
